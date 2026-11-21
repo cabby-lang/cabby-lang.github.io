@@ -22,6 +22,25 @@ document.addEventListener("DOMContentLoaded", () => {
 		pre.appendChild(button);
 	}
 
+	// "Try it" on whole programs, when the playground can run them: those
+	// with a main that don't use a library needing the computer itself.
+	if (document.body.dataset.playground) {
+		// (what wasm/README.md says a browser hasn't, and what the docs' examples showed it can't: a C
+		// function of the program's own, a header beside it, MIME types, zlib, printf)
+		const needsComputer = /^(use (local|gui|gtk|game|tgame|world|tui|sound|videos|media|speech|printing|bluetooth|dbus|desktop|screens|mouse|keyboard|brightness|volume|power|networks|emails|processes|shell|threads|databases|secrets|system|users|mime|archives|standard|events|os|linux)\b|extern\b|\s*\.\.\.\s*$)/m;
+		for (const pre of document.querySelectorAll("pre.code.cabby")) {
+			const text = pre.querySelector("code").textContent;
+			if (!/^int main\b/m.test(text) || needsComputer.test(text)) continue;
+			let b = "";
+			for (const byte of new TextEncoder().encode(text.replace(/\n*$/, "\n"))) b += String.fromCharCode(byte);
+			const a = document.createElement("a");
+			a.className = "try";
+			a.href = "/playground/#code=" + btoa(b).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+			a.textContent = "Try it";
+			pre.appendChild(a);
+		}
+	}
+
 	// A # link beside each heading, to link straight to it.
 	for (const h of document.querySelectorAll(".prose :is(h2, h3, h4)[id]")) {
 		const a = document.createElement("a");

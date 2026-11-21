@@ -14,7 +14,7 @@ changing when Cabby does.
 |---|---|
 | `build.py` | builds the site into `_site/` |
 | `layout.html` | the frame around every page: top bar, sidebar, footer |
-| `pages/` | the hand-written pages: home, docs, playground, 404, and the code shown on the home page (`pages/snippets/`) |
+| `pages/` | the hand-written pages: home, docs, the playground (`playground-live.html`, and `playground.html` for when there's no interpreter), 404, and the code shown on the home page (`pages/snippets/`) |
 | `assets/` | the look (`style.css`), copy buttons and the phone menu (`site.js`), icons |
 | `.github/workflows/pages.yml` | builds and publishes the site |
 
@@ -30,6 +30,19 @@ The Download page comes from the release itself: its `.deb` and
 archives. A Mac file, once a release has one (a name with `macos`,
 `darwin` or `arm64` in it), appears there too.
 
+## The playground
+
+The playground runs Cabby's own interpreter, built for WebAssembly by
+Cabby's `make wasm-site` (`wasm/README.md` in the Cabby repository). The
+workflow builds it from the release with wasi-sdk 32; its examples are the
+ones in Cabby's `wasm/index.html`. If a release can't be built for it, the
+site is still published, and the Playground page says it's coming.
+
+With the playground there, whole programs in the docs (those with a `main`,
+that don't use a library a browser hasn't) get a **Try it** button that
+opens them in it. A program can be shared as a link: it travels in the
+address (`/playground/#code=...`), so nothing is stored anywhere.
+
 ## Building it yourself
 
 Needs Python 3 and pandoc (`sudo pacman -S pandoc`, `sudo apt install pandoc`,
@@ -40,7 +53,11 @@ Needs Python 3 and pandoc (`sudo pacman -S pandoc`, `sudo apt install pandoc`,
     cd _site && python3 -m http.server 8000
 
 Then open <http://localhost:8000>. Without `--release release.json` it reads
-the latest release from GitHub.
+the latest release from GitHub. For the playground, build Cabby for
+WebAssembly first and add `--wasm`:
+
+    make -C cabby wasm-site
+    python3 build.py --cabby cabby --out _site --wasm cabby/build/wasm-site
 
 ## Your own domain, later
 

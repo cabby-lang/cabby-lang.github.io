@@ -310,26 +310,67 @@ pre.code:hover .copy, .copy:focus { opacity: 1; }
 
 /* ---------------------------------------------------------- playground */
 
-.playground { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; margin-top: 20px; }
-.pane { border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg-code); overflow: hidden; display: flex; flex-direction: column; }
+.pg-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 20px 0 12px; }
+.pg-grow { flex: 1; }
+.pg-examples { color: var(--muted); font-size: .92rem; display: flex; align-items: center; gap: 8px; }
+.pg-examples select {
+	font: inherit; color: var(--text); background: var(--bg-raised);
+	border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px;
+}
+.pg-status { color: var(--muted); font-size: .9rem; }
+.pg-bar .button { padding: 7px 16px; cursor: pointer; font: 600 .95rem var(--sans); }
+.pg-bar .button:disabled { opacity: .45; cursor: default; }
+.pg-bar .button:disabled:hover { background: var(--green); }
+.pg-bar .button.secondary:disabled:hover { background: transparent; border-color: var(--line); }
+
+.playground { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px; }
+.pg-right { display: grid; grid-template-rows: 1fr auto; gap: 16px; min-width: 0; }
+.pane { border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg-code); overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
 .pane-head {
 	display: flex; align-items: center; justify-content: space-between; gap: 10px;
-	padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--bg-raised);
+	padding: 7px 12px; border-bottom: 1px solid var(--line); background: var(--bg-raised);
 	font: 600 .8rem var(--sans); color: var(--muted);
 }
-.pane textarea {
-	flex: 1; min-height: 380px; width: 100%; resize: vertical;
-	background: transparent; color: var(--text); border: 0; padding: 14px 16px;
-	font: .88rem/1.55 var(--mono); tab-size: 4; -moz-tab-size: 4; outline: none;
+.pane-head label { font: inherit; }
+.pane-hint { font-weight: 400; }
+kbd {
+	font: .75rem var(--mono); border: 1px solid var(--line); border-bottom-width: 2px;
+	border-radius: 4px; padding: 0 4px; background: var(--bg);
 }
-.pane output { display: block; flex: 1; min-height: 380px; padding: 14px 16px; font: .88rem/1.55 var(--mono); white-space: pre-wrap; color: var(--muted); }
-.pane button:disabled { opacity: .5; cursor: not-allowed; }
+.pane-clear { font: 500 .75rem var(--sans); color: var(--muted); background: none; border: 0; cursor: pointer; padding: 0; }
+.pane-clear:hover { color: var(--text); }
+.pane textarea {
+	flex: 1; width: 100%; resize: vertical;
+	background: transparent; color: var(--text); border: 0; padding: 14px 16px; margin: 0;
+	font: .88rem/1.55 var(--mono); tab-size: 4; -moz-tab-size: 4; outline: none; white-space: pre; overflow: auto;
+}
+#code { min-height: 460px; }
+#input { min-height: 72px; }
+.pane output {
+	display: block; flex: 1; min-height: 300px; max-height: 520px; overflow: auto; padding: 14px 16px;
+	font: .88rem/1.55 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text); tab-size: 4;
+}
+.pg-err { color: #ff7b72; }
+@media (prefers-color-scheme: light) { .pg-err { color: #c62828; } }
+.pg-note { margin-top: 18px; max-width: 900px; }
 .notice {
 	border: 1px solid var(--green); border-radius: var(--radius); padding: 14px 18px;
 	background: color-mix(in srgb, var(--green) 10%, transparent);
 }
 .notice p { margin: 0; }
-@media (max-width: 900px) { .playground { grid-template-columns: minmax(0, 1fr); } }
+pre.code .try {
+	position: absolute; top: 8px; right: 62px;
+	font: 500 .75rem var(--sans); color: var(--button-text); background: var(--green);
+	border-radius: 6px; padding: 3px 9px; text-decoration: none; opacity: 0; transition: opacity .15s;
+}
+pre.code:hover .try, pre.code .try:focus { opacity: 1; }
+@media (hover: none) { pre.code .try { opacity: 1; } }
+@media (max-width: 900px) {
+	.playground { grid-template-columns: minmax(0, 1fr); }
+	#code { min-height: 320px; }
+	.pane output { min-height: 160px; }
+	.pane-hint { display: none; }
+}
 
 /* ---------------------------------------------------------- footer */
 

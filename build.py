@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """Builds the Cabby website from the cabby repository.
 
-    python3 build.py --cabby ../cabby --out _site [--release release.json]
+    python3 build.py --cabby ../cabby --out _site [--release release.json] [--wasm ../cabby/build/wasm-site]
 
 Everything the site says about the language comes from the cabby
 repository at the version being published: the manual (tutorials.md),
 the language reference (README.md), the library pages (lib/*.md), the
 style guide, the timeline and the logo. The hand-written pages (home,
-download, playground) live in pages/, and the look in assets/.
+download, playground) live in pages/, and the look in assets/. With
+--wasm, the playground runs Cabby's interpreter, built for WebAssembly.
 
 Needs Python 3.8+ and pandoc (for GitHub-flavored Markdown).
 """
@@ -181,8 +182,9 @@ class Highlighter:
 # ----------------------------------------------------------------- the site
 
 class Site:
-    def __init__(self, cabby_dir, out_dir, release):
+    def __init__(self, cabby_dir, out_dir, release, wasm_dir=None):
         self.cabby = cabby_dir
+        self.wasm = wasm_dir if wasm_dir and (wasm_dir / "cabby.wasm").exists() else None
         self.out = out_dir
         self.release = release
         vh = (cabby_dir / "version.h").read_text()
@@ -252,6 +254,7 @@ class Site:
                 "Cabby: a small, natively compiled language with a quiet syntax and Rust-style ownership."),
             nav=nav, sidebar=f'<nav class="sidebar" aria-label="In this section">{sidebar}</nav>' if sidebar else "",
             content=content, layout_class=layout_class, body_class=body_class,
+            playground="1" if self.wasm else "",
             version=self.version, version_date=self.version_date, tag=self.tag, github=GITHUB))
 
     # ------------------------------------------------------------ the manual
@@ -469,6 +472,28 @@ sudo make install</code></pre>
         self.write("/download/", "Download", content, section="download",
                    description=f"Download Cabby {v} for Debian, Arch Linux and the Mac, or get the source code.")
 
+    WASM_FILES = ("cabby.wasm", "cabby.js", "cabby-worker.js", "cabby-lib.json")
+
+    def build_playground(self):
+        """The interpreter in the page, when this Cabby has a WebAssembly
+        build (from `make wasm-site`); until then, a page saying it's coming."""
+        if not self.wasm:
+            self.write("/playground/", "Playground", self.page("playground.html"), section="playground",
+                       description="Run Cabby in your browser.")
+            return
+        dest = self.out / "playground"
+        dest.mkdir(parents=True, exist_ok=True)
+        for name in self.WASM_FILES:
+            shutil.copy(self.wasm / name, dest / name)
+        # the examples: those of Cabby's own page (wasm/index.html), so the two agree
+        demo_page = self.cabby / "wasm/index.html"
+        demo = demo_page.read_text() if demo_page.exists() else ""
+        m = re.search(r"const EXAMPLES = (\{.*?\n\});", demo, re.S)
+        examples = m.group(1) if m else json.dumps({"Hello": 'int main {\n\tprintln "Hello, Cabby!"\n}\n'})
+        content = self.page("playground-live.html").replace("{{examples}}", examples)
+        self.write("/playground/", "Playground", content, section="playground",
+                   description=f"Run Cabby {self.version} in your browser, with nothing to install.")
+
     def build(self):
         if self.out.exists():
             shutil.rmtree(self.out)
@@ -489,8 +514,7 @@ sudo make install</code></pre>
         self.build_docs_home()
         self.build_download()
         self.write("/", "Cabby", self.page("index.html"), section="home", body_class="home")
-        self.write("/playground/", "Playground", self.page("playground.html"), section="playground",
-                   description="Run Cabby in your browser.")
+        self.build_playground()
         self.write("/404.html", "Not found", self.page("404.html"))
         (self.out / ".nojekyll").write_text("")
         count = sum(1 for _ in self.out.rglob("*.html"))
@@ -518,8 +542,10 @@ def main():
     ap.add_argument("--cabby", default="cabby", help="the cabby repository, at the version to publish")
     ap.add_argument("--out", default="_site", help="where the site goes")
     ap.add_argument("--release", help="the GitHub release, as JSON (default: fetch the latest)")
+    ap.add_argument("--wasm", help="Cabby built for WebAssembly (its build/wasm-site), for the playground")
     a = ap.parse_args()
-    Site(Path(a.cabby).resolve(), Path(a.out).resolve(), load_release(a.release)).build()
+    Site(Path(a.cabby).resolve(), Path(a.out).resolve(), load_release(a.release),
+         Path(a.wasm).resolve() if a.wasm else None).build()
 
 
 if __name__ == "__main__":

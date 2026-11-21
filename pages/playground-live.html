@@ -1,0 +1,166 @@
+<article class="prose wide">
+  <h1>Playground</h1>
+  <p class="lead">Cabby {{version}}'s own interpreter, running in this page as WebAssembly. Nothing is installed, and your program isn't sent anywhere.</p>
+
+  <div class="pg-bar">
+    <label class="pg-examples">Example <select id="example"></select></label>
+    <span class="pg-grow"></span>
+    <span class="pg-status" id="status" aria-live="polite">Loading…</span>
+    <button class="button secondary" id="share" type="button" title="Copy a link to this program">Share</button>
+    <button class="button secondary" id="stop" type="button" disabled>Stop</button>
+    <button class="button" id="run" type="button" disabled title="Ctrl+Enter">Run</button>
+  </div>
+
+  <div class="playground">
+    <div class="pane">
+      <div class="pane-head"><span>prog.cby</span><span class="pane-hint"><kbd>Tab</kbd> indents · <kbd>Ctrl</kbd>+<kbd>Enter</kbd> runs</span></div>
+      <textarea id="code" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="The program"></textarea>
+    </div>
+    <div class="pg-right">
+      <div class="pane pane-out">
+        <div class="pane-head"><span>What it prints</span><button class="pane-clear" id="clear" type="button">Clear</button></div>
+        <output id="output"></output>
+      </div>
+      <div class="pane pane-in">
+        <div class="pane-head"><label for="input">What it reads (<code>input</code>, <code>read_line</code>)</label></div>
+        <textarea id="input" spellcheck="false" autocapitalize="off" aria-label="What the program reads"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <p class="small pg-note">The playground runs everything that doesn't need the computer itself. Windows and games, sound, the network,
+  other programs and threads say so when they're used; files are the program's own, kept until it ends; and there's no
+  compiling (<code>-c</code>) or interactive session here. For those, <a href="/download/">download Cabby</a>.
+  It needs a recent browser (Chrome or Edge 137, Firefox 131, Safari 18.4 or later).</p>
+</article>
+
+<script type="module">
+const EXAMPLES = {{examples}};
+
+const $ = id => document.getElementById(id);
+const code = $('code'), out = $('output'), run = $('run'), stop = $('stop'), status = $('status'), input = $('input');
+
+// a program in the address (#code=...), from a "Try it" or a shared link
+function fromHash() {
+	const m = location.hash.match(/^#code=([A-Za-z0-9_-]*)/);
+	if (!m) return null;
+	try {
+		const b = atob(m[1].replace(/-/g, '+').replace(/_/g, '/'));
+		return new TextDecoder().decode(Uint8Array.from(b, c => c.charCodeAt(0)));
+	} catch { return null; }
+}
+function toHash(text) {
+	let b = '';
+	for (const byte of new TextEncoder().encode(text)) b += String.fromCharCode(byte);
+	return '#code=' + btoa(b).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+const select = $('example');
+if (fromHash() !== null) select.add(new Option('Your program', ''));
+for (const name of Object.keys(EXAMPLES)) select.add(new Option(name, name));
+select.onchange = () => {
+	if (select.value) {
+		code.value = EXAMPLES[select.value];
+		history.replaceState(null, '', location.pathname);
+	}
+	out.textContent = '';
+};
+code.value = fromHash() ?? EXAMPLES[Object.keys(EXAMPLES)[0]];
+input.value = 'Ada';
+window.addEventListener('hashchange', () => {
+	const t = fromHash();
+	if (t !== null) { code.value = t; out.textContent = ''; }
+});
+
+// Tab puts a tab in, as Cabby's blocks want; Enter keeps the indent
+code.addEventListener('keydown', e => {
+	if (e.key === 'Tab' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+		e.preventDefault();
+		if (e.shiftKey) {   // take a tab off the start of the line
+			const s = code.selectionStart, start = code.value.lastIndexOf('\n', s - 1) + 1;
+			if (code.value[start] === '\t') {
+				code.setSelectionRange(start, start + 1);
+				document.execCommand('delete');
+				code.setSelectionRange(Math.max(start, s - 1), Math.max(start, s - 1));
+			}
+		} else {
+			document.execCommand('insertText', false, '\t');
+		}
+	} else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+		e.preventDefault();
+		if (!run.disabled) run.click();
+	} else if (e.key === 'Enter' && !e.shiftKey && !e.altKey) {
+		e.preventDefault();
+		const before = code.value.slice(0, code.selectionStart);
+		const line = before.slice(before.lastIndexOf('\n') + 1);
+		const tabs = line.match(/^\t*/)[0] + (/\{\s*$/.test(line) ? '\t' : '');
+		document.execCommand('insertText', false, '\n' + tabs);
+	} else if (e.key === '}' && code.selectionStart === code.selectionEnd) {
+		const before = code.value.slice(0, code.selectionStart);
+		if (/\n\t+$/.test(before)) {   // a } on a line of tabs takes one back
+			e.preventDefault();
+			code.setSelectionRange(code.selectionStart - 1, code.selectionStart);
+			document.execCommand('insertText', false, '}');
+		}
+	}
+});
+
+let worker = null, started = 0, gotOut = false;
+function newWorker() {
+	worker = new Worker(new URL('cabby-worker.js', import.meta.url), { type: 'module' });
+	worker.onmessage = e => {
+		const m = e.data;
+		if (m.out !== undefined) { out.append(m.out); gotOut = true; }
+		else if (m.err !== undefined) {
+			const s = document.createElement('span');
+			s.className = 'pg-err';
+			s.textContent = m.err;
+			out.append(s);
+		} else if (m.done !== undefined) {
+			finished(m.done === 0 ? 'Done' : m.done === 101 ? 'Stopped by a panic' : m.done === 1 && !gotOut ? 'Cabby found a mistake' : `Ended with ${m.done}`);
+		}
+	};
+	worker.onerror = e => finished('Something went wrong: ' + (e.message || 'this browser may be too old'));
+}
+function finished(text) {
+	run.disabled = false;
+	stop.disabled = true;
+	status.textContent = `${text} · ${Math.round(performance.now() - started)} ms`;
+}
+run.onclick = () => {
+	out.textContent = '';
+	gotOut = false;
+	run.disabled = true;
+	stop.disabled = false;
+	status.textContent = 'Running…';
+	started = performance.now();
+	worker.postMessage({ source: code.value, stdin: input.value + '\n' });
+};
+stop.onclick = () => {
+	worker.terminate();
+	newWorker();
+	finished('Stopped');
+};
+$('clear').onclick = () => { out.textContent = ''; };
+$('share').onclick = async () => {
+	const url = location.origin + location.pathname + toHash(code.value);
+	history.replaceState(null, '', url);
+	try {
+		await navigator.clipboard.writeText(url);
+		status.textContent = 'Link copied';
+	} catch {
+		status.textContent = 'The link is in the address bar';
+	}
+};
+
+if (typeof WebAssembly !== 'object') {
+	status.textContent = 'This browser can\'t run WebAssembly';
+} else {
+	newWorker();
+	fetch(new URL('cabby-lib.json', import.meta.url), { method: 'HEAD' }).then(r => {
+		if (!r.ok) throw new Error('The interpreter is missing');
+		run.disabled = false;
+		status.textContent = 'Ready';
+	}).catch(e => { status.textContent = e.message; });
+}
+</script>
