@@ -34,7 +34,7 @@ archives. A Mac file, once a release has one (a name with `macos`,
 
 The playground runs Cabby's own interpreter, built for WebAssembly by
 Cabby's `make wasm-site` (`wasm/README.md` in the Cabby repository). The
-workflow builds it from the release with wasi-sdk 32; its examples are the
+workflow builds it from the release with wasi-sdk 34; its examples are the
 ones in Cabby's `wasm/index.html`. If a release can't be built for it, the
 site is still published, and the Playground page says it's coming.
 
