@@ -1,0 +1,66 @@
+# Builds the website from the latest Cabby release and publishes it.
+#
+# It runs when this repository changes, once a day (so a new Cabby release
+# shows up by itself within a day), and from the Actions tab
+# ("Run workflow") to publish a new release straight away.
+name: Publish the site
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 19 * * *"   # 6:17 am in Sydney (summer time)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Find the latest Cabby release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api repos/cabby-lang/cabby/releases/latest > release.json
+          echo "tag=$(jq -r .tag_name release.json)" >> "$GITHUB_OUTPUT"
+          echo "Building the site for Cabby $(jq -r .tag_name release.json)"
+
+      - name: Get Cabby at that release
+        uses: actions/checkout@v4
+        with:
+          repository: cabby-lang/cabby
+          ref: ${{ steps.release.outputs.tag }}
+          path: cabby
+
+      - name: Install pandoc
+        run: sudo apt-get update && sudo apt-get install -y pandoc
+
+      - name: Build the site
+        run: python3 build.py --cabby cabby --out _site --release release.json
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

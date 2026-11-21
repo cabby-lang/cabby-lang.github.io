@@ -1,0 +1,30 @@
+<article class="prose wide">
+  <h1>Playground</h1>
+  <p class="lead">Run Cabby in your browser, with nothing to install.</p>
+  <div class="notice">
+    <p><strong>Coming soon.</strong> The playground will run Cabby's own interpreter, compiled to WebAssembly. Until
+    then, <a href="/download/">download Cabby</a> and type <code>cabby</code> for the interactive session.</p>
+  </div>
+
+  <div class="playground" aria-label="Playground (not working yet)">
+    <div class="pane">
+      <div class="pane-head"><span>hello.cby</span><button class="button" type="button" disabled>Run</button></div>
+      <textarea spellcheck="false" aria-label="Cabby program">{{raw:hello.cby}}</textarea>
+    </div>
+    <div class="pane">
+      <div class="pane-head"><span>Output</span></div>
+      <output>Hello, Ada
+Hello, Grace
+Hello, Linus</output>
+    </div>
+  </div>
+</article>
+<script>
+	// Tab types a tab, as Cabby needs, instead of leaving the box.
+	document.querySelector(".pane textarea").addEventListener("keydown", (e) => {
+		if (e.key === "Tab" && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+			e.preventDefault();
+			document.execCommand("insertText", false, "\t");
+		}
+	});
+</script>

@@ -1,0 +1,29 @@
+object window {
+	int Width
+	int Height
+	str Title
+
+	int area const {
+		return Width * Height
+	}
+
+	void resize int w, int h {
+		Width = w
+		Height = h
+	}
+
+	~window {
+		println "closing", Title
+	}
+}
+
+int main int Argc, str Argv[] {
+	window w = {.Width = 4, .Height = 3, .Title = "demo"}
+	w.resize 8, 6
+	println "area is", w.area
+
+	for i in Argc {
+		println "argument", i, Argv[i]
+	}
+	return 0
+}                                   // "closing demo" is printed here

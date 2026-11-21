@@ -1,0 +1,6 @@
+int main {
+	list str Names = {"Ada", "Grace", "Linus"}
+	for Name in Names {
+		println "Hello,", Name
+	}
+}

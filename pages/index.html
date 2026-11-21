@@ -1,0 +1,78 @@
+<section class="hero">
+  <div class="hero-text">
+    <img class="hero-logo" src="/assets/cabby.svg" alt="The Cabby cabbage" width="96" height="96">
+    <h1>Cabby</h1>
+    <p class="lead">A small, natively compiled language with a quiet syntax. Every value has an owner, so
+    memory is freed for you, and most mistakes are caught before a program ever runs.</p>
+    <div class="hero-actions">
+      <a class="button" href="/download/">Download Cabby {{version}}</a>
+      <a class="button secondary" href="/docs/manual/">Read the manual</a>
+    </div>
+  </div>
+  <div>
+    <p class="code-title">window.cby</p>
+    {{code:window.cby}}
+  </div>
+</section>
+
+<section class="features" aria-label="What Cabby is like">
+  <div class="feature">
+    <h2>Quiet syntax</h2>
+    <p>No semicolons and no parentheses around conditions. Tabs and braces make the blocks, and both are checked.</p>
+  </div>
+  <div class="feature">
+    <h2>Owned, not collected</h2>
+    <p>Values have one owner and are cleaned up when it goes. No garbage collector, no reference counting, and use-after-move is an error before the program runs.</p>
+  </div>
+  <div class="feature">
+    <h2>Run it or build it</h2>
+    <p><code>cabby prog.cby</code> runs a program straight away. <code>cabby -c</code> builds a native program through LLVM, with the same output, typically 10–100 times faster.</p>
+  </div>
+  <div class="feature">
+    <h2>Objects</h2>
+    <p>Objects with methods, inheritance and multiple inheritance, made and dropped when you'd expect, with handlers for anything that happens later.</p>
+  </div>
+  <div class="feature">
+    <h2>As low as you need</h2>
+    <p>Call the C library directly with <code>extern</code>, or <code>use addresses</code> for memory and hardware addresses.</p>
+  </div>
+  <div class="feature">
+    <h2>As high as you want</h2>
+    <p>Libraries for windows, games, 3D, sound and MIDI, files, networks, JSON, databases and the desktop, the same on Linux and the Mac.</p>
+  </div>
+</section>
+
+<section class="showcase">
+  <div>
+    <h2>Windows in a few lines</h2>
+    <p>A window is an object made from <code>gui.window</code>. Its <code>build</code> method says what's in it, and
+    handlers say what happens when someone clicks or presses Enter. There's no event loop to write.</p>
+    <p>The manual teaches all of Cabby a chapter at a time, from <a href="/docs/manual/chapter-1/">Hello, Cabby</a>
+    to <a href="/docs/manual/chapter-51/">your first window</a> and beyond, and every example in it is run by
+    Cabby's tests.</p>
+    <p><a href="/docs/">All the documentation →</a></p>
+  </div>
+  <div>
+    <p class="code-title">greeter.cby</p>
+    {{code:greeter.cby}}
+  </div>
+</section>
+
+<section>
+  <h2>Get Cabby</h2>
+  <div class="install-strip">
+    <div>
+      <h3>Debian and Ubuntu</h3>
+      <pre class="code sh"><code>sudo apt install ./cabby_{{version}}_amd64.deb</code></pre>
+    </div>
+    <div>
+      <h3>Arch Linux</h3>
+      <pre class="code sh"><code>sudo pacman -U cabby-{{version}}-1-x86_64.pkg.tar.zst</code></pre>
+    </div>
+    <div>
+      <h3>Mac</h3>
+      <pre class="code sh"><code>packaging/homebrew/build-tap.sh</code></pre>
+    </div>
+  </div>
+  <p><a href="/download/">Downloads, checksums and the source code →</a></p>
+</section>

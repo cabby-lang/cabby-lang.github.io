@@ -1,0 +1,32 @@
+use gui
+
+object greeter : gui.window {
+	gui.label Message                // what the handlers need later
+	gui.entry Name
+
+	void build {
+		set_title "Greeter"
+		set_size 360, 180
+		Message = add_label "What's your name?"
+		Name = add_entry
+		gui.button Hello = add_button "Say hello"
+		Hello.on_click say_hello     // a handler: runs on each click
+		Name.on_enter say_hello      // and when Enter is pressed in the box
+	}
+
+	void say_hello {
+		str Who = Name.text
+		if Who.length == 0 {
+			Message.set_text "Type your name first!"
+			return
+		}
+		Message.set_text "Hello, " + Who + "!"
+		println "greeted", Who
+	}
+}
+
+int main {
+	greeter g
+	g.run                            // returns when the window is closed
+	println "goodbye"
+}
