@@ -485,6 +485,9 @@ sudo make install</code></pre>
         dest.mkdir(parents=True, exist_ok=True)
         for name in self.WASM_FILES:
             shutil.copy(self.wasm / name, dest / name)
+        # the font windows and games write with (fetched only when one opens)
+        if (self.wasm / "fonts").is_dir():
+            shutil.copytree(self.wasm / "fonts", dest / "fonts", dirs_exist_ok=True)
         # the examples: those of Cabby's own page (wasm/index.html), so the two agree
         demo_page = self.cabby / "wasm/index.html"
         demo = demo_page.read_text() if demo_page.exists() else ""
