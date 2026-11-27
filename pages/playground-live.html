@@ -32,7 +32,21 @@
     </div>
   </div>
 
-  <p class="small pg-note">The playground runs everything that doesn't need the computer itself. Windows and games, sound, the network,
+  <div class="pg-stage" id="stage" hidden>
+    <div class="pane-head"><span id="stage-title">The window</span>
+      <button class="pane-clear" id="close-window" type="button">Close the window</button></div>
+    <div id="canvas-here"></div>
+    <div class="pg-pad" aria-label="Keys for a game, for a phone">
+      <button type="button" data-key="Left" aria-label="Left">←</button><button type="button" data-key="Up" aria-label="Up">↑</button>
+      <button type="button" data-key="Down" aria-label="Down">↓</button><button type="button" data-key="Right" aria-label="Right">→</button>
+      <button type="button" data-key="Space" aria-label="Space">␣</button>
+      <button type="button" id="keyboard" aria-label="Type">⌨</button>
+    </div>
+    <input id="typing" aria-hidden="true" tabindex="-1" autocomplete="off" autocapitalize="off">
+  </div>
+
+  <p class="small pg-note">The playground runs everything that doesn't need the computer itself, windows and games too
+  (<code>use gui</code>, <code>use game</code>: shown under the program, and played with the keys or the mouse). Sound, 3D, the network,
   other programs and threads say so when they're used; files are the program's own, kept until it ends; and there's no
   compiling (<code>-c</code>) or interactive session here. For those, <a href="/download/">download Cabby</a>.
   It needs a recent browser (Chrome or Edge 137, Firefox 131, Safari 18.4 or later).</p>
@@ -142,6 +156,18 @@ function newWorker() {
 			s.className = 'pg-err';
 			s.textContent = m.err;
 			out.append(s);
+		} else if (m.window) {
+			// a window or a game: shown, at its size, and listening
+			$('stage').hidden = false;
+			$('stage-title').textContent = m.window.title || 'The window';
+			// (as big as fits: the page's width, half as big again as itself, and most of the screen's height)
+			const { width: w, height: h } = m.window;
+			screen.style.aspectRatio = `${w} / ${h}`;
+			screen.style.width = `min(100%, ${Math.round(w * 1.5)}px, calc(75vh * ${(w / h).toFixed(4)}))`;
+			screen.focus({ preventScroll: true });
+			screen.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+		} else if (m.closed) {
+			$('stage').hidden = true;
 		} else if (m.done !== undefined) {
 			finished(m.done === 0 ? 'Done' : m.done === 101 ? 'Stopped by a panic' : m.done === 1 && !gotOut ? 'Cabby found a mistake' : `Ended with ${m.done}`);
 		}
@@ -160,11 +186,85 @@ run.onclick = () => {
 	stop.disabled = false;
 	status.textContent = 'Running…';
 	started = performance.now();
-	worker.postMessage({ source: code.value, stdin: input.value + '\n', args: splitArgs(argsBox.value) });
+	// (a new canvas each time: one given to a worker is the worker's)
+	const canvas = newScreen();
+	worker.postMessage({ source: code.value, stdin: input.value + '\n', args: splitArgs(argsBox.value), canvas }, [canvas]);
 };
+
+// ---- a window or a game: a canvas the worker draws on, and what's done there
+let screen = null;
+function newScreen() {
+	$('stage').hidden = true;
+	screen = document.createElement('canvas');
+	screen.tabIndex = 0;
+	screen.setAttribute('aria-label', 'The window');
+	$('canvas-here').replaceChildren(screen);
+	screen.addEventListener('keydown', e => key(e, 'down'));
+	screen.addEventListener('keyup', e => key(e, 'up'));
+	screen.addEventListener('pointerdown', e => {
+		screen.focus();
+		screen.setPointerCapture(e.pointerId);   // (a drag carries on outside it)
+		send({ kind: 'click', ...at(e) });
+	});
+	screen.addEventListener('pointerup', e => send({ kind: 'release', ...at(e) }));
+	screen.addEventListener('pointermove', e => send({ kind: 'move', ...at(e) }));
+	screen.addEventListener('wheel', e => {
+		e.preventDefault();
+		const lines = e.deltaMode === 1 ? 1 : 1 / 40;   // (pixels, or lines: about 40 pixels a line)
+		send({ kind: 'wheel', x: -e.deltaX * lines, y: -e.deltaY * lines });
+	}, { passive: false });
+	return screen.transferControlToOffscreen();
+}
+const send = input => worker.postMessage({ input });
+// where, in the window's own pixels (the canvas is shown bigger or smaller)
+function at(e) {
+	const r = screen.getBoundingClientRect(), w = screen.width || r.width, h = screen.height || r.height;
+	return { x: (e.clientX - r.left) * w / r.width, y: (e.clientY - r.top) * h / r.height };
+}
+// a key, as SDL names it
+const NAMES = { ArrowLeft: 'Left', ArrowRight: 'Right', ArrowUp: 'Up', ArrowDown: 'Down', ' ': 'Space', Enter: 'Return',
+	Escape: 'Escape', Tab: 'Tab', Backspace: 'Backspace', Delete: 'Delete', Home: 'Home', End: 'End',
+	PageUp: 'PageUp', PageDown: 'PageDown', Insert: 'Insert' };
+function key(e, kind) {
+	let name = NAMES[e.key] || (/^F\d{1,2}$/.test(e.key) ? e.key : null);
+	if (!name && /^(Key[A-Z]|Digit\d)$/.test(e.code))
+		name = e.code.slice(-1);   // (the key itself, whatever Shift makes of it)
+	if (!name && e.key.length === 1)
+		name = e.key;
+	if (!name)
+		return;
+	e.preventDefault();   // (arrows and Space are the game's, not the page's to scroll)
+	const ctrl = e.ctrlKey || e.metaKey;
+	send({ kind, key: name, ctrl, shift: e.shiftKey, alt: e.altKey, repeat: e.repeat });
+	// and what it types, for a window's text boxes
+	if (kind === 'down' && e.key.length === 1 && !ctrl && !e.altKey)
+		send({ kind: 'text', key: e.key });
+}
+// closed as a window is closed: the program carries on after its run
+$('close-window').onclick = () => send({ kind: 'close' });
+// a phone's typing: its keyboard, for a hidden text box, whose typing goes to the window
+$('keyboard').onclick = () => $('typing').focus();
+$('typing').addEventListener('beforeinput', e => {
+	e.preventDefault();
+	const tap = k => { send({ kind: 'down', key: k }); send({ kind: 'up', key: k }); };
+	if (e.inputType === 'insertText' && e.data)
+		for (const ch of e.data)
+			send({ kind: 'text', key: ch });
+	else if (e.inputType === 'insertLineBreak' || e.inputType === 'insertParagraph')
+		tap('Return');
+	else if (e.inputType.startsWith('deleteContentBackward'))
+		tap('Backspace');
+});
+// the keys under it, for a phone
+for (const b of document.querySelectorAll('.pg-pad button[data-key]')) {
+	b.addEventListener('pointerdown', e => { e.preventDefault(); send({ kind: 'down', key: b.dataset.key }); });
+	for (const end of ['pointerup', 'pointerleave', 'pointercancel'])
+		b.addEventListener(end, () => send({ kind: 'up', key: b.dataset.key }));
+}
 stop.onclick = () => {
 	worker.terminate();
 	newWorker();
+	$('stage').hidden = true;
 	finished('Stopped');
 };
 $('clear').onclick = () => { out.textContent = ''; };

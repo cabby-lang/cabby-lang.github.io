@@ -355,6 +355,17 @@ kbd {
 .pg-err { color: #ff7b72; }
 @media (prefers-color-scheme: light) { .pg-err { color: #c62828; } }
 .pg-note { margin-top: 18px; max-width: 900px; }
+/* a window or a game, under the program */
+.pg-stage { margin-top: 16px; }
+.pg-stage .pane-head { display: flex; justify-content: space-between; align-items: center; }
+#canvas-here canvas { display: block; margin: 10px auto 0; border-radius: 10px; background: #000;
+  outline: none; touch-action: none; }
+#canvas-here canvas:focus-visible { box-shadow: 0 0 0 3px var(--green); }
+.pg-pad { display: flex; gap: 8px; justify-content: center; margin-top: 10px; }
+.pg-pad button { min-width: 56px; min-height: 48px; font-size: 1.2rem; user-select: none; -webkit-user-select: none;
+  touch-action: none; border-radius: 8px; border: 1px solid var(--line); background: transparent; color: inherit; }
+@media (hover: hover) and (pointer: fine) { .pg-pad { display: none; } }
+#typing { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
 .notice {
 	border: 1px solid var(--green); border-radius: var(--radius); padding: 14px 18px;
 	background: color-mix(in srgb, var(--green) 10%, transparent);
