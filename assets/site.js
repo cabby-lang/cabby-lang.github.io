@@ -36,6 +36,13 @@ document.addEventListener("DOMContentLoaded", () => {
 			const a = document.createElement("a");
 			a.className = "try";
 			a.href = "/playground/#code=" + btoa(b).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+			// (a program run with arguments says so, as the tutorials do: "// args: a b")
+			const args = text.match(/^\/\/ args: (.*)$/m);
+			if (args) {
+				let ab = "";
+				for (const byte of new TextEncoder().encode(args[1])) ab += String.fromCharCode(byte);
+				a.href += "&args=" + btoa(ab).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+			}
 			a.textContent = "Try it";
 			pre.appendChild(a);
 		}

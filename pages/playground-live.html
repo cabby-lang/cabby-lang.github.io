@@ -21,6 +21,10 @@
         <div class="pane-head"><span>What it prints</span><button class="pane-clear" id="clear" type="button">Clear</button></div>
         <output id="output"></output>
       </div>
+      <div class="pane pane-args">
+        <div class="pane-head"><label for="args">Arguments (what <code>main</code> gets, as after <code>cabby prog.cby</code>)</label></div>
+        <input id="args" type="text" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder="none: say &quot;two words&quot; in quotes to keep them together" aria-label="The program's arguments">
+      </div>
       <div class="pane pane-in">
         <div class="pane-head"><label for="input">What it reads (<code>input</code>, <code>read_line</code>)</label></div>
         <textarea id="input" spellcheck="false" autocapitalize="off" aria-label="What the program reads"></textarea>
@@ -39,37 +43,59 @@ const EXAMPLES = {{examples}};
 
 const $ = id => document.getElementById(id);
 const code = $('code'), out = $('output'), run = $('run'), stop = $('stop'), status = $('status'), input = $('input');
-
-// a program in the address (#code=...), from a "Try it" or a shared link
-function fromHash() {
-	const m = location.hash.match(/^#code=([A-Za-z0-9_-]*)/);
-	if (!m) return null;
+const argsBox = $('args');
+// text to and from the address's base64 (URL-safe, no padding)
+function unpack(s) {
 	try {
-		const b = atob(m[1].replace(/-/g, '+').replace(/_/g, '/'));
+		const b = atob(s.replace(/-/g, '+').replace(/_/g, '/'));
 		return new TextDecoder().decode(Uint8Array.from(b, c => c.charCodeAt(0)));
 	} catch { return null; }
 }
-function toHash(text) {
+function pack(text) {
 	let b = '';
 	for (const byte of new TextEncoder().encode(text)) b += String.fromCharCode(byte);
-	return '#code=' + btoa(b).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+	return btoa(b).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
-
+// a program in the address (#code=...), from a "Try it" or a shared link;
+// and its arguments (&args=...), if it has any
+function fromHash() {
+	const m = location.hash.match(/^#code=([A-Za-z0-9_-]*)/);
+	return m ? unpack(m[1]) : null;
+}
+function argsFromHash() {
+	const m = location.hash.match(/[#&]args=([A-Za-z0-9_-]*)/);
+	return m ? unpack(m[1]) ?? '' : '';
+}
+function toHash(text, args) {
+	return '#code=' + pack(text) + (args.trim() ? '&args=' + pack(args) : '');
+}
+// the arguments box, as a terminal splits it: at spaces, but "two words"
+// (or 'two words') in quotes are one
+function splitArgs(line) {
+	const args = [];
+	for (const m of line.matchAll(/"([^"]*)"|'([^']*)'|(\S+)/g)) args.push(m[1] ?? m[2] ?? m[3]);
+	return args;
+}
 const select = $('example');
 if (fromHash() !== null) select.add(new Option('Your program', ''));
 for (const name of Object.keys(EXAMPLES)) select.add(new Option(name, name));
 select.onchange = () => {
 	if (select.value) {
 		code.value = EXAMPLES[select.value];
+		argsBox.value = '';
 		history.replaceState(null, '', location.pathname);
 	}
 	out.textContent = '';
 };
 code.value = fromHash() ?? EXAMPLES[Object.keys(EXAMPLES)[0]];
+argsBox.value = argsFromHash();
 input.value = 'Ada';
 window.addEventListener('hashchange', () => {
 	const t = fromHash();
-	if (t !== null) { code.value = t; out.textContent = ''; }
+	if (t !== null) { code.value = t; argsBox.value = argsFromHash(); out.textContent = ''; }
+});
+argsBox.addEventListener('keydown', e => {
+	if (e.key === 'Enter' && !run.disabled) { e.preventDefault(); run.click(); }
 });
 
 // Tab puts a tab in, as Cabby's blocks want; Enter keeps the indent
@@ -134,7 +160,7 @@ run.onclick = () => {
 	stop.disabled = false;
 	status.textContent = 'Running…';
 	started = performance.now();
-	worker.postMessage({ source: code.value, stdin: input.value + '\n' });
+	worker.postMessage({ source: code.value, stdin: input.value + '\n', args: splitArgs(argsBox.value) });
 };
 stop.onclick = () => {
 	worker.terminate();
@@ -143,7 +169,7 @@ stop.onclick = () => {
 };
 $('clear').onclick = () => { out.textContent = ''; };
 $('share').onclick = async () => {
-	const url = location.origin + location.pathname + toHash(code.value);
+	const url = location.origin + location.pathname + toHash(code.value, argsBox.value);
 	history.replaceState(null, '', url);
 	try {
 		await navigator.clipboard.writeText(url);
