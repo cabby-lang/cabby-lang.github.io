@@ -5,9 +5,10 @@
 # ("Run workflow") to publish a new release straight away.
 #
 # The playground runs Cabby's interpreter built for WebAssembly (`make
-# wasm-site`, from Cabby 1.1.0). If that release can't be built for it,
-# the rest of the site is still published, with the playground saying it's
-# coming.
+# wasm-site`, from Cabby 1.1.0), with SDL built for WebAssembly first
+# (`tools/build-sdl-wasm.sh`), so windows and games run there too. If that
+# release can't be built for it, the rest of the site is still published,
+# with the playground saying it's coming.
 name: Publish the site
 
 on:
@@ -60,6 +61,23 @@ jobs:
         run: |
           mkdir -p ~/tools
           curl -fsSL "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-$WASI_SDK_VERSION/wasi-sdk-$WASI_SDK_VERSION.0-x86_64-linux.tar.gz" | tar xz -C ~/tools
+
+      # SDL 3 built for WebAssembly: with it, `make wasm-site` puts the gui
+      # and game libraries in the playground's cabby.wasm (without it, `use
+      # gui` and `use game` say SDL isn't installed). Kept between runs: it
+      # only changes when the release's script, or its patch to SDL, does.
+      - name: Keep SDL for WebAssembly between runs
+        id: sdl-cache
+        if: steps.wasi.outcome == 'success' && hashFiles('cabby/tools/build-sdl-wasm.sh') != ''
+        uses: actions/cache@v4
+        with:
+          path: cabby/build/wasm-sdl
+          key: wasm-sdl-${{ hashFiles('cabby/tools/build-sdl-wasm.sh', 'cabby/tools/sdl-wasi.patch') }}
+
+      - name: Build SDL for WebAssembly
+        if: steps.wasi.outcome == 'success' && hashFiles('cabby/tools/build-sdl-wasm.sh') != '' && steps.sdl-cache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        run: cabby/tools/build-sdl-wasm.sh   # (finds wasi-sdk in ~/tools)
 
       - name: Build Cabby for the playground
         if: steps.wasi.outcome == 'success'
